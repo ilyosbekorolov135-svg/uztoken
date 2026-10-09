@@ -22,6 +22,5 @@ env/
 debug.py
 fix_db.py
 clean_db.py
-test_*.py
 interactive.py
 setup_ext.py

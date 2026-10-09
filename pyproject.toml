@@ -31,7 +31,7 @@ classifiers = [
     "Topic :: Text Processing :: Linguistic",
     "Natural Language :: Uzbek",
 ]
-dependencies = []
+dependencies = ["tokenizers>=0.15.0"]
 
 [project.optional-dependencies]
 fast = ["numpy>=1.21.0"]
@@ -45,6 +45,9 @@ Repository = "https://github.com/uztoken/uztoken"
 
 [tool.setuptools.packages.find]
 include = ["uztoken*"]
+
+[tool.setuptools.package-data]
+"uztoken.data" = ["*.txt", "*.json", "*.gz"]
 
 [tool.ruff]
 line-length = 100
