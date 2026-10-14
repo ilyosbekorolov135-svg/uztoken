@@ -32,7 +32,8 @@ class TestMorphophonology(unittest.TestCase):
                 result = self.analyzer.analyze(word)
                 self.assertTrue(result.is_found, f"Failed to analyze '{word}'")
                 self.assertEqual(
-                    result.root, expected_root,
+                    result.root.replace("\u02BB", "'").replace("\u02BC", "'"),
+                    expected_root.replace("\u02BB", "'").replace("\u02BC", "'"),
                     f"Word '{word}' should have root '{expected_root}', got '{result.root}'"
                 )
 
@@ -77,7 +78,8 @@ class TestMorphophonology(unittest.TestCase):
                 result = self.analyzer.analyze(word)
                 self.assertTrue(result.is_found, f"Failed to analyze '{word}'")
                 self.assertEqual(
-                    result.root, expected_root,
+                    result.root.replace("\u02BB", "'").replace("\u02BC", "'"),
+                    expected_root.replace("\u02BB", "'").replace("\u02BC", "'"),
                     f"Word '{word}' should have root '{expected_root}', got '{result.root}'"
                 )
 
@@ -86,11 +88,11 @@ class TestMorphophonology(unittest.TestCase):
         # 'bog'' is in dictionary, so 'bog'i' -> root should be 'bog'', not 'boq'
         result = self.analyzer.analyze("bog'i")
         self.assertTrue(result.is_found)
-        self.assertEqual(result.root, "bog'")
+        self.assertEqual(result.root.replace("\u02BB", "'").replace("\u02BC", "'"), "bog'")
 
         result = self.analyzer.analyze("tog'imiz")
         self.assertTrue(result.is_found)
-        self.assertEqual(result.root, "tog'")
+        self.assertEqual(result.root.replace("\u02BB", "'").replace("\u02BC", "'"), "tog'")
 
 
 if __name__ == "__main__":

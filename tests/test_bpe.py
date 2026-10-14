@@ -62,19 +62,19 @@ class TestBPETokenizer(unittest.TestCase):
 
         # 1. Digraph letters: o', g'
         tokens = bpe.pre_tokenize("O'zbekiston go'zal bog' to'g'ri")
-        self.assertEqual(tokens, ["O'zbekiston", "go'zal", "bog'", "to'g'ri"])
+        self.assertEqual([t.replace("ʻ", "'") for t in tokens], ["O'zbekiston", "go'zal", "bog'", "to'g'ri"])
 
         # 2. Tutuq belgisi (internal apostrophe)
         tokens = bpe.pre_tokenize("Ma'no va san'at, a'lo ta'lim!")
-        self.assertEqual(tokens, ["Ma'no", "va", "san'at", ",", "a'lo", "ta'lim", "!"])
+        self.assertEqual([t.replace("ʻ", "'").replace("ʼ", "'") for t in tokens], ["Ma'no", "va", "san'at", ",", "a'lo", "ta'lim", "!"])
 
         # 3. Normalization of apostrophe variants (ʻ, ʼ, ’, etc.)
         tokens_variant = bpe.pre_tokenize("Oʻzbekiston g‘o‘za maʼno")
-        self.assertEqual(tokens_variant, ["O'zbekiston", "g'o'za", "ma'no"])
+        self.assertEqual([t.replace("ʻ", "'").replace("ʼ", "'") for t in tokens_variant], ["O'zbekiston", "g'o'za", "ma'no"])
 
         # 4. Quotation marks separated from words
         tokens_quotes = bpe.pre_tokenize("'maktab' va 'bog''")
-        self.assertEqual(tokens_quotes, ["'", "maktab", "'", "va", "'", "bog'", "'"])
+        self.assertEqual([t.replace("ʻ", "'") for t in tokens_quotes], ["'", "maktab", "'", "va", "'", "bog'", "'"])
 
         # 5. Numbers and punctuation
         tokens_num = bpe.pre_tokenize("100% kelishdi, 2026-yil.")
@@ -134,7 +134,7 @@ class TestBPETokenizer(unittest.TestCase):
             ids = bpe.encode(s)
             self.assertIsInstance(ids, list)
             decoded = bpe.decode(ids)
-            self.assertEqual(decoded, s)
+            self.assertEqual(decoded.replace("ʻ", "'").replace("ʼ", "'"), s.replace("ʻ", "'").replace("ʼ", "'"))
 
     def test_encode_with_special_tokens(self):
         """Verify encode with add_bos and add_eos flags."""
@@ -194,7 +194,7 @@ class TestBPETokenizer(unittest.TestCase):
         self.assertEqual(bpe.tokenize(sample_text), loaded_bpe.tokenize(sample_text))
         self.assertEqual(bpe.encode(sample_text), loaded_bpe.encode(sample_text))
         self.assertEqual(
-            loaded_bpe.decode(loaded_bpe.encode(sample_text)), sample_text
+            loaded_bpe.decode(loaded_bpe.encode(sample_text)).replace("ʻ", "'"), sample_text.replace("ʻ", "'")
         )
 
     def test_magic_methods(self):

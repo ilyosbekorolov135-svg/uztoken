@@ -462,7 +462,17 @@ class UzTokenizer:
         vocab = self.build_unified_vocab()
         subwords = self.tokenize_with_boundaries(text, style=style)
         unk_id = vocab.get("<unk>", 1)
-        return [vocab.get(sw, unk_id) for sw in subwords]
+        res_ids = []
+        for sw in subwords:
+            if sw in vocab:
+                res_ids.append(vocab[sw])
+            elif sw.startswith("Ġ") and ("Ġ" + sw[1:].lower()) in vocab:
+                res_ids.append(vocab["Ġ" + sw[1:].lower()])
+            elif sw.lower() in vocab:
+                res_ids.append(vocab[sw.lower()])
+            else:
+                res_ids.append(unk_id)
+        return res_ids
 
     def decode(self, ids: List[int]) -> str:
         """Decode token IDs back to human-readable text."""

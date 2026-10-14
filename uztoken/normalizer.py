@@ -42,10 +42,10 @@ _RE_ORPHANED_APOSTROPHE_TRAILING: Pattern = re.compile(r"\b([ogOG])\s+['\u02BB\u
 # Regex for applying O'/G' vs Tutuq belgisi rules
 # Match [oOgG] followed by apostrophe -> ʻ
 _RE_O_G_APOS: Pattern = re.compile(r"([oOgG])'")
-# Match other vowel followed by apostrophe -> ʼ (simplified rule)
-_RE_TUTUQ_APOS: Pattern = re.compile(r"([aAeEuUiI])'")
-# Remaining apostrophes in words might also be tutuq belgisi (e.g., san'at -> sanʼat)
-_RE_OTHER_APOS: Pattern = re.compile(r"([b-df-hj-np-tv-zB-DF-HJ-NP-TV-Z])'")
+# Match other vowel followed by apostrophe + letter -> ʼ (tutuq belgisi)
+_RE_TUTUQ_APOS: Pattern = re.compile(r"([aAeEuUiI])'(?=[a-zA-Z])")
+# Remaining apostrophes inside words between letters are tutuq belgisi (e.g., san'at -> sanʼat)
+_RE_OTHER_APOS: Pattern = re.compile(r"([b-df-hj-np-tv-zB-DF-HJ-NP-TV-Z])'(?=[a-zA-Z])")
 
 # ============================================================================
 # Whitespace & Cleaning Regular Expressions
@@ -142,6 +142,8 @@ def normalize_apostrophes_lossless(text: str) -> Tuple[str, List[Tuple[int, str]
 
 def normalize_apostrophes(text: str) -> str:
     """Standardize apostrophes based on Uzbek rules."""
+    if not isinstance(text, str):
+        raise TypeError(f"Expected str, got {type(text).__name__}")
     norm_text, _ = normalize_apostrophes_lossless(text)
     return norm_text
 
@@ -156,15 +158,21 @@ def restore_apostrophes_lossless(normalized_text: str, replacements: List[Tuple[
 
 
 def normalize_uzbek(text: str) -> str:
+    if not isinstance(text, str):
+        raise TypeError(f"Expected str, got {type(text).__name__}")
     if not text:
         return ""
     text = unicodedata.normalize("NFKC", text)
     text = normalize_apostrophes(text)
     text = text.lower()
+    # collapse orphaned apostrophes: "o ' zbekiston" -> "o'zbekiston"
+    text = re.sub(r"([og])\s+['\u02BB\u02BC]\s*", r"\1" + "\u02BB", text, flags=re.IGNORECASE)
     text = _RE_WHITESPACE.sub(" ", text).strip()
     return text
 
 def cyrillic_to_latin(text: str) -> str:
+    if not isinstance(text, str):
+        raise TypeError(f"Expected str, got {type(text).__name__}")
     if not text:
         return ""
     text = unicodedata.normalize("NFC", text)
@@ -207,6 +215,8 @@ def cyrillic_to_latin(text: str) -> str:
     return "".join(result)
 
 def clean_text(text: str) -> str:
+    if not isinstance(text, str):
+        raise TypeError(f"Expected str, got {type(text).__name__}")
     if not text: return ""
     text = html.unescape(text)
     text = _RE_HTML_TAGS.sub(" ", text)
@@ -222,6 +232,105 @@ def clean_text(text: str) -> str:
     text = _RE_WHITESPACE.sub(" ", text).strip()
     return text
 
+
+# ============================================================================
+# Script Detection and Uzbek Latin Validation
+# ============================================================================
+
+# Valid Uzbek Latin letters (strict mode)
+_UZ_LATIN_STRICT = re.compile(
+    r"^(?:[a-df-hj-np-tv-zA-DF-HJ-NP-TV-Z"
+    r"o'g'shchngOGSHCHNG"
+    r"'ʻʼ])+$"
+)
+# Valid Latin letters (non-strict — allows c, w, x for loanwords)
+_UZ_LATIN_LAX = re.compile(r"^[a-zA-Z'ʻʼ]+$")
+# Apostrophe-only string
+_ONLY_APOS = re.compile(r"^['\u02BB\u02BC]+$")
+# Trailing/leading bad apostrophe patterns
+_BAD_APOS = re.compile(r"(?:^['\u02BB\u02BC]|['\u02BB\u02BC]$)")
+# Strictly Uzbek vowels that can precede apostrophe (o', g')
+_VALID_APOS_CONTEXT = re.compile(r"[og]['\u02BB\u02BC]", re.IGNORECASE)
+_CYRILLIC_RE = re.compile(r"[\u0400-\u04FF\u0500-\u052F]")
+
+
+def has_cyrillic(text: str) -> bool:
+    """Return True if *text* contains at least one Cyrillic character."""
+    if not isinstance(text, str):
+        return False
+    return bool(_CYRILLIC_RE.search(text))
+
+
+def detect_script(text: str) -> str:
+    """Detect dominant script in *text*.
+
+    Returns one of: ``'cyrillic'``, ``'latin'``, ``'mixed'``, ``'other'``, ``'empty'``.
+    """
+    if not text:
+        return "empty"
+    cyr = len(_CYRILLIC_RE.findall(text))
+    lat = len(re.findall(r"[a-zA-Z]", text))
+    if cyr == 0 and lat == 0:
+        return "other"
+    if cyr > 0 and lat == 0:
+        return "cyrillic"
+    if lat > 0 and cyr == 0:
+        return "latin"
+    return "mixed"
+
+
+def is_uzbek_word(word: str, strict: bool = True) -> bool:
+    """Return True if *word* looks like a valid Uzbek Latin word.
+
+    Parameters
+    ----------
+    word:
+        The word to check.
+    strict:
+        If ``True`` (default), only characters from the official Uzbek Latin
+        alphabet are allowed (no ``w``, standalone ``c``).  Set to ``False`` to
+        accept common loanword letters.
+    """
+    if not isinstance(word, str) or not word.strip():
+        return False
+    # Reject whitespace-containing strings
+    if re.search(r"\s", word):
+        return False
+    # Reject Cyrillic
+    if has_cyrillic(word):
+        return False
+    # Reject digits and punctuation (other than apostrophe and letters)
+    if re.search(r"[0-9!\"#$%&()*+,\-./:;<=>?@\[\\\]^_{|}~`´]", word):
+        return False
+    # Check apostrophes
+    all_apos = ("'", "\u02BB", "\u02BC", "\u2019", "\u2018", "`", "´")
+    # Reject leading apostrophe
+    if word.startswith(all_apos):
+        return False
+    # Trailing apostrophe only valid after o/g/O/G
+    if word.endswith(all_apos):
+        if len(word) < 2 or word[-2].lower() not in ("o", "g"):
+            return False
+    # Reject double apostrophe
+    if re.search(r"['\u02BB\u02BC\u2019\u2018`´]{2,}", word):
+        return False
+    # Check valid Latin letters + apostrophes
+    if not re.match(r"^[a-zA-Z'\u02BB\u02BC\u2019\u2018`´]+$", word):
+        return False
+
+    if strict:
+        # No 'w' or 'W' in official Uzbek Latin
+        if "w" in word.lower():
+            return False
+        # 'c' is only valid in 'ch' digraph
+        lower = word.lower()
+        for i, ch in enumerate(lower):
+            if ch == "c":
+                if i + 1 >= len(lower) or lower[i + 1] != "h":
+                    return False
+    return True
+
+
 __all__ = [
     "normalize_apostrophes",
     "normalize_apostrophes_lossless",
@@ -229,5 +338,8 @@ __all__ = [
     "normalize_uzbek",
     "cyrillic_to_latin",
     "clean_text",
+    "has_cyrillic",
+    "detect_script",
+    "is_uzbek_word",
     "APOSTROPHE_VARIANTS",
 ]

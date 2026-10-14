@@ -17,7 +17,8 @@ class TestTrieNode(unittest.TestCase):
     def test_node_initialization(self):
         node = TrieNode()
         self.assertFalse(node.is_end)
-        self.assertIsNone(node.data)
+        # data is a list (supports multiple payloads per suffix)
+        self.assertEqual(node.data, [])
         self.assertEqual(node.children, {})
 
     def test_node_slots(self):
@@ -27,7 +28,7 @@ class TestTrieNode(unittest.TestCase):
             node.extra_field = 123  # type: ignore[attr-defined]
 
     def test_node_custom_data(self):
-        data = {"pos": "noun", "case": "locative"}
+        data = [{"pos": "noun", "case": "locative"}]
         node = TrieNode(data=data, is_end=True)
         self.assertTrue(node.is_end)
         self.assertEqual(node.data, data)
@@ -68,11 +69,13 @@ class TestSuffixTrie(unittest.TestCase):
         self.assertFalse(self.trie.search("nonexistent"))
 
     def test_get(self):
+        # get() returns list of dicts (multiple payloads per suffix)
         data = self.trie.get("da")
         self.assertIsNotNone(data)
-        self.assertEqual(data["type"], "case")
+        self.assertIsInstance(data, list)
+        self.assertEqual(data[0]["type"], "case")
         self.assertIsNone(self.trie.get("nonexistent"))
-        self.assertEqual(self.trie.get("nonexistent", default={}), {})
+        self.assertEqual(self.trie.get("nonexistent", default=[]), [])
 
     def test_find_suffixes_ordering_longest_first(self):
         # "kitoblarimizda" has suffixes: "da", "imizda", "larimizda"
@@ -84,7 +87,7 @@ class TestSuffixTrie(unittest.TestCase):
         lengths = [len(m[0]) for m in matches]
         self.assertEqual(lengths, sorted(lengths, reverse=True))
 
-        # Check associated data
+        # Check associated data (each match is (suffix_str, payload_dict))
         self.assertEqual(matches[0][1]["type"], "compound")
         self.assertEqual(matches[2][1]["name"], "o'rin-payt")
 
@@ -110,7 +113,10 @@ class TestSuffixTrie(unittest.TestCase):
         self.assertEqual(added, 3)
         self.assertEqual(len(st), 3)
         self.assertTrue("dek" in st)
-        self.assertEqual(st.get("dek"), {})
+        # get() returns list; empty-dict payload = [{}]
+        result = st.get("dek")
+        self.assertIsInstance(result, list)
+        self.assertEqual(result[0], {})
 
     def test_iteration_and_items(self):
         st = SuffixTrie([("lar", {"id": 1}), ("da", {"id": 2})])
@@ -118,8 +124,9 @@ class TestSuffixTrie(unittest.TestCase):
         self.assertEqual(all_suffixes, {"lar", "da"})
 
         items = dict(st.items())
-        self.assertEqual(items["lar"], {"id": 1})
-        self.assertEqual(items["da"], {"id": 2})
+        # items() returns (suffix, list_of_dicts)
+        self.assertEqual(items["lar"][0], {"id": 1})
+        self.assertEqual(items["da"][0], {"id": 2})
 
     def test_type_error_handling(self):
         with self.assertRaises(TypeError):

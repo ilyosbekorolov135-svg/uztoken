@@ -20,27 +20,28 @@ except ImportError:
 
 # Well-known Uzbek vowel-drop (syncope) stems and alternations pre-generated mapping
 _MORPHOPHONOLOGICAL_MAP: Dict[str, str] = {
-    # Vowel drops
-    "shahr": "shahar",
-    "singl": "singil",
-    "burn": "burun",
-    "o'g'l": "o'g'il",
-    "bag'r": "bag'ir",
-    "ko'ngl": "ko'ngil",
-    "qorn": "qorin",
-    "bo'yn": "bo'yin",
-    "og'z": "og'iz",
-    "qovrg'": "qovurg'a",
+    # Vowel drops (syncope): inflected surface form -> canonical stem
+    "shahr":      "shahar",
+    "singl":      "singil",
+    "burn":       "burun",
+    "o\u02BBg\u02BBl":  "o\u02BBg\u02BBil",   # o'g'l -> o'g'il
+    "bag\u02BBr":  "bag\u02BBir",              # bag'r -> bag'ir
+    "ko\u02BBngl": "ko\u02BBngil",             # ko'ngl -> ko'ngil
+    "qorn":       "qorin",
+    "bo\u02BByn":  "bo\u02BByin",              # bo'yn -> bo'yin
+    "og\u02BBz":   "og\u02BBiz",               # og'z -> og'iz
+    "qovrg\u02BB": "qovurg\u02BBa",            # qovrg' -> qovurg'a
     # Consonant alternations (k->g, q->g')
-    "yurag": "yurak",
-    "qishlog'": "qishloq",
-    "barmog'": "barmoq",
-    "qulog'": "quloq",
-    "tarmog'": "tarmoq",
-    "yoprog'": "yaproq",
-    "tayog'": "tayoq",
-    "o'rtog'": "o'rtoq",
-    "tirnog'": "tirnoq",
+    "yurag":             "yurak",
+    "qishlog\u02BB":     "qishloq",
+    "barmog\u02BB":      "barmoq",
+    "qulog\u02BB":       "quloq",
+    "tarmog\u02BB":      "tarmoq",
+    "yoprog\u02BB":      "yaproq",
+    "tayog\u02BB":       "tayoq",
+    "o\u02BFrtog\u02BB": "o\u02BFrtoq",        # variant with ʿ
+    "o\u02BBrtog\u02BB": "o\u02BBrtoq",        # o'rtog' -> o'rtoq
+    "tirnog\u02BB":      "tirnoq",
 }
 
 @dataclass
@@ -148,6 +149,10 @@ class MorphAnalyzer:
                 del self._cache[k]
         self._cache[word_lower] = result
         return result
+
+    def clear_cache(self) -> None:
+        """Clear the morphology analysis cache."""
+        self._cache.clear()
 
     def analyze_all(self, word: str, max_results: int = 5) -> List[AnalysisResult]:
         word_lower = normalize_uzbek(word)
